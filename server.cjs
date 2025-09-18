@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const Filter = require('bad-words');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -11,6 +12,15 @@ const filter = new Filter();
 
 const chatLogs = {}; // { room: [ { user, message, time } ] }
 const userLogs = {}; // { room: Set of usernames }
+
+function saveChatLog(room) {
+  const filePath = path.join(__dirname, 'chat_folder', `${room}_chat.json`);
+  fs.writeFile(filePath, JSON.stringify(chatLogs[room] || [], null, 2), () => {});
+}
+function saveUserLog(room) {
+  const filePath = path.join(__dirname, 'chat_folder', `${room}_users.json`);
+  fs.writeFile(filePath, JSON.stringify(Array.from(userLogs[room] || []), null, 2), () => {});
+}
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -27,7 +37,8 @@ io.on('connection', (socket) => {
     userLogs[room].add(username);
     // Send chat log to new user
     socket.emit('chat log', chatLogs[room]);
-    io.to(room).emit('user joined', username);
+  io.to(room).emit('user joined', username);
+  saveUserLog(room);
   });
 
   socket.on('chat message', (msg) => {
@@ -35,13 +46,15 @@ io.on('connection', (socket) => {
     const cleanMsg = filter.clean(msg);
     const entry = { user: username, message: cleanMsg, time: new Date().toISOString() };
     chatLogs[currentRoom].push(entry);
-    io.to(currentRoom).emit('chat message', entry);
+  io.to(currentRoom).emit('chat message', entry);
+  saveChatLog(currentRoom);
   });
 
   socket.on('disconnect', () => {
     if (currentRoom && userLogs[currentRoom]) {
       userLogs[currentRoom].delete(username);
-      io.to(currentRoom).emit('user left', username);
+  io.to(currentRoom).emit('user left', username);
+  saveUserLog(currentRoom);
     }
   });
 });
@@ -58,9 +71,7 @@ app.get('/user_log/:room', (req, res) => {
   res.json(Array.from(userLogs[room] || []));
 });
 
-const PORT = process.env.PORT || 3000;
-const HOST = '0.0.0.0';
-server.listen(PORT, HOST, () => {
-  console.log(`Server running on http://${HOST}:${PORT}`);
-  console.log('Share your local IP address (e.g., http://192.168.x.x:3000) for others to join.');
+const PORT = 3000;
+server.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });

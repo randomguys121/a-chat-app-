@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Folder - View Chats & Users</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #23272a; color: #fff; }
+    #container { max-width: 800px; margin: 40px auto; background: #2c2f33; border-radius: 8px; padding: 20px; }
+    h1, h2 { color: #7289da; }
+    .room-section { margin-bottom: 40px; }
+    .chat-log, .user-log { background: #23272a; border-radius: 4px; padding: 10px; margin-bottom: 10px; }
+    .chat-log { max-height: 200px; overflow-y: auto; }
+    .user-log { max-height: 100px; overflow-y: auto; }
+    .user { display: inline-block; margin-right: 10px; }
+    .refresh-btn { background: #7289da; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <h1>Chat Folder</h1>
+    <div>
+      <label for="room">Room name:</label>
+      <input id="room" type="text" placeholder="Enter room name..." />
+      <button class="refresh-btn" onclick="loadRoom()">View</button>
+    </div>
+    <div id="room-section" class="room-section" style="display:none;">
+      <h2 id="room-title"></h2>
+      <div>
+        <strong>Users:</strong>
+        <div id="user-log" class="user-log"></div>
+      </div>
+      <div>
+        <strong>Chat Log:</strong>
+        <div id="chat-log" class="chat-log"></div>
+      </div>
+      <button class="refresh-btn" onclick="loadRoom()">Refresh</button>
+    </div>
+  </div>
+  <script>
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, function(m) {
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'})[m];
+      });
+    }
+    function loadRoom() {
+      const room = document.getElementById('room').value.trim();
+      if (!room) return;
+      document.getElementById('room-title').textContent = `Room: ${room}`;
+      document.getElementById('room-section').style.display = '';
+      fetch(`/user_log/${room}`)
+        .then(r => r.json())
+        .then(users => {
+          document.getElementById('user-log').innerHTML = users.length ? users.map(u => `<span class='user'>${escapeHtml(u)}</span>`).join('') : '<em>No users</em>';
+        });
+      fetch(`/chat_log/${room}`)
+        .then(r => r.json())
+        .then(log => {
+          document.getElementById('chat-log').innerHTML = log.length ? log.map(e => `<div><strong>${escapeHtml(e.user)}</strong>: ${escapeHtml(e.message)} <span style='color:#aaa;font-size:0.8em'>[${new Date(e.time).toLocaleTimeString()}]</span></div>`).join('') : '<em>No messages</em>';
+        });
+    }
+  </script>
+</body>
+</html>

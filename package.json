@@ -4,8 +4,9 @@
   "description": "",
   "main": "server.cjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.cjs"
+  "test": "echo \"Error: no test specified\" && exit 1",
+  "start": "node server.cjs",
+  "start-site": "npm install && npm start"
   },
   "keywords": [],
   "author": "",
