@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Chat App</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #23272a; color: #fff; }
+    #chat { max-width: 600px; margin: 40px auto; background: #2c2f33; border-radius: 8px; padding: 20px; }
+    #messages { list-style: none; padding: 0; max-height: 300px; overflow-y: auto; }
+    #messages li { margin-bottom: 10px; }
+    #form { display: flex; }
+    #input { flex: 1; padding: 10px; border: none; border-radius: 4px; }
+    #send { padding: 10px 20px; border: none; background: #7289da; color: #fff; border-radius: 4px; cursor: pointer; }
+    #room-link { margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div id="chat">
+    <div id="room-link"></div>
+    <ul id="messages"></ul>
+    <form id="form">
+      <input id="input" autocomplete="off" placeholder="Type a message..." />
+      <button id="send">Send</button>
+    </form>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let room = location.hash.replace('#', '') || Math.random().toString(36).substr(2, 8);
+    let username = prompt('Enter your name:') || 'Anonymous';
+    location.hash = room;
+    document.getElementById('room-link').innerHTML = `Share this link to invite: <a href="${location.origin}/#${room}" style="color:#7289da">${location.origin}/#${room}</a>`;
+
+    socket.emit('join', { room, user: username });
+
+    const form = document.getElementById('form');
+    const input = document.getElementById('input');
+    const messages = document.getElementById('messages');
+
+    function addMessage(msg, isSystem = false) {
+      const li = document.createElement('li');
+      li.innerHTML = isSystem ? `<em>${msg}</em>` : msg;
+      messages.appendChild(li);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    socket.on('chat log', (log) => {
+      log.forEach(entry => {
+        addMessage(`<strong>${entry.user}</strong>: ${entry.message} <span style='color:#aaa;font-size:0.8em'>[${new Date(entry.time).toLocaleTimeString()}]</span>`);
+      });
+    });
+
+    socket.on('chat message', (entry) => {
+      addMessage(`<strong>${entry.user}</strong>: ${entry.message} <span style='color:#aaa;font-size:0.8em'>[${new Date(entry.time).toLocaleTimeString()}]</span>`);
+    });
+
+    socket.on('user joined', (user) => {
+      addMessage(`${user} joined the chat`, true);
+    });
+    socket.on('user left', (user) => {
+      addMessage(`${user} left the chat`, true);
+    });
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (input.value) {
+        socket.emit('chat message', input.value);
+        input.value = '';
+      }
+    });
+  </script>
+</body>
+</html>
