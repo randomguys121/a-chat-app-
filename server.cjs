@@ -22,6 +22,12 @@ function saveUserLog(room) {
   fs.writeFile(filePath, JSON.stringify(Array.from(userLogs[room] || []), null, 2), () => {});
 }
 
+// Allow iframe embedding from any origin
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'ALLOWALL');
+  res.setHeader('Content-Security-Policy', "frame-ancestors *");
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 io.on('connection', (socket) => {
@@ -34,11 +40,21 @@ io.on('connection', (socket) => {
     socket.join(room);
     if (!chatLogs[room]) chatLogs[room] = [];
     if (!userLogs[room]) userLogs[room] = new Set();
+
+    // If only one user is in the room (after refresh), archive and clear chat log
+    setTimeout(() => {
+      const userCount = userLogs[room] ? userLogs[room].size : 0;
+      if (userCount === 1 && chatLogs[room] && chatLogs[room].length > 0) {
+        saveChatLog(room); // already saves to file
+        chatLogs[room] = [];
+      }
+    }, 500); // short delay to allow join
+
     userLogs[room].add(username);
     // Send chat log to new user
     socket.emit('chat log', chatLogs[room]);
-  io.to(room).emit('user joined', username);
-  saveUserLog(room);
+    io.to(room).emit('user joined', username);
+    saveUserLog(room);
   });
 
   socket.on('chat message', (msg) => {
